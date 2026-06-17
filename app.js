@@ -1,7 +1,7 @@
 // ====== KONFIGURASI BACKEND ======
 // Ganti dengan URL Ngrok / Domain Publik Anda jika di-hosting di GitHub Pages (misal: "https://abcd-123.ngrok-free.app").
 // Jika dijalankan secara lokal di Node-RED, biarkan kosong "" agar otomatis mendeteksi alamat IP lokal.
-const BACKEND_URL = ""; 
+const BACKEND_URL = "https://unengaged-finalist-married.ngrok-free.dev"; 
 // =================================
 
 // Fungsi helper untuk mendapatkan URL API
