@@ -396,6 +396,34 @@ Object.keys(legendButtons).forEach(indexStr => {
     }
 });
 
+// ====== HISTORICAL REPORT LEGEND BUTTONS SINKRONISASI ======
+const reportLegendButtons = {
+    0: { btn: document.getElementById('report-legend-temp'), activeClass: 'active-temp' },
+    1: { btn: document.getElementById('report-legend-humid'), activeClass: 'active-humid' },
+    2: { btn: document.getElementById('report-legend-hi'), activeClass: 'active-hi' }
+};
+
+Object.keys(reportLegendButtons).forEach(indexStr => {
+    const index = parseInt(indexStr);
+    const item = reportLegendButtons[index];
+    if (item.btn) {
+        item.btn.addEventListener('click', () => {
+            if (reportChartInstance) {
+                const isVisible = reportChartInstance.isDatasetVisible(index);
+                if (isVisible) {
+                    reportChartInstance.hide(index);
+                    item.btn.classList.remove(item.activeClass);
+                } else {
+                    reportChartInstance.show(index);
+                    item.btn.classList.add(item.activeClass);
+                }
+            } else {
+                item.btn.classList.toggle(item.activeClass);
+            }
+        });
+    }
+});
+
 function updateChartThemeColors(theme) {
     const colors = getThemeColors(theme);
     
@@ -804,14 +832,7 @@ function renderReportsChart(data) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'top',
-                    align: 'end',
-                    labels: {
-                        color: colors.tickColor,
-                        font: { family: 'Outfit', size: 11, weight: '500' },
-                        boxWidth: 8,
-                        usePointStyle: true
-                    }
+                    display: false // Sembunyikan legenda bawaan Chart.js
                 },
                 tooltip: {
                     backgroundColor: colors.tooltipBg,
@@ -833,6 +854,20 @@ function renderReportsChart(data) {
                     grid: { color: colors.gridColor },
                     ticks: { color: colors.tickColor, font: { family: 'Outfit', size: 9 } }
                 }
+            }
+        }
+    });
+
+    // Sinkronisasikan visibilitas dataset dengan status tombol legenda kustom
+    Object.keys(reportLegendButtons).forEach(indexStr => {
+        const index = parseInt(indexStr);
+        const item = reportLegendButtons[index];
+        if (item.btn) {
+            const isActive = item.btn.classList.contains(item.activeClass);
+            if (!isActive) {
+                reportChartInstance.hide(index);
+            } else {
+                reportChartInstance.show(index);
             }
         }
     });
