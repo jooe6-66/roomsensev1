@@ -193,11 +193,11 @@ if (settingsForm) {
             isNaN(currentHi) ? null : currentHi
         );
 
-        // Kirim konfigurasi ke server Node-RED via HTTP POST
         fetch(getApiUrl('/api/settings'), {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
             },
             body: JSON.stringify({
                 tempMin: tempMin,
@@ -500,8 +500,11 @@ function updateAllMetrics(temp, humid, hi) {
 /* ==========================================================================
    DATA LOADER (HISTORY & REAL-TIME WEBSOCKET)
    ========================================================================== */
-// 1. Ambil Data Histori Awal dari Database SQLite via API Node-RED
-fetch(getApiUrl('/api/history'))
+fetch(getApiUrl('/api/history'), {
+    headers: {
+        'ngrok-skip-browser-warning': 'true'
+    }
+})
     .then(res => res.json())
     .then(data => {
         data.forEach(row => {
@@ -592,7 +595,11 @@ updateAllMetrics(null, null, null);
 
 // ====== HISTORICAL REPORTS LOGIC ======
 function fetchHistoricalData() {
-    fetch(getApiUrl('/api/export'))
+    fetch(getApiUrl('/api/export'), {
+        headers: {
+            'ngrok-skip-browser-warning': 'true'
+        }
+    })
         .then(res => {
             if (!res.ok) throw new Error("Gagal mengambil data historis");
             return res.text();
