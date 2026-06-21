@@ -89,7 +89,6 @@ function switchTab(tabId) {
     const titles = {
         overview: 'Dashboard Overview',
         reports: 'Laporan Sensor',
-        users: 'Daftar Pengguna',
         settings: 'Pengaturan Sistem'
     };
     document.getElementById('page-title').textContent = titles[tabId] || 'Dashboard';
