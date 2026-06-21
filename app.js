@@ -339,41 +339,7 @@ const roomsenseChart = new Chart(ctxMain, {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'top',
-                align: 'end',
-                labels: {
-                    font: { family: 'Outfit', size: 12, weight: '500' },
-                    boxWidth: 8,
-                    usePointStyle: true,
-                    generateLabels: (chart) => {
-                        const datasets = chart.data.datasets;
-                        const isLight = (document.documentElement.getAttribute('data-theme') === 'light');
-                        
-                        return datasets.map((dataset, i) => {
-                            const isVisible = chart.isDatasetVisible(i);
-                            
-                            // Warna teks: Cerah jika aktif, redup jika tidak aktif (hidden)
-                            let fontColor;
-                            if (isVisible) {
-                                fontColor = isLight ? '#1e1b4b' : '#f8fafc';
-                            } else {
-                                fontColor = isLight ? '#cbd5e1' : '#475569';
-                            }
-                            
-                            return {
-                                text: dataset.label,
-                                fillStyle: isVisible ? dataset.borderColor : (isLight ? '#e2e8f0' : '#201e3d'),
-                                strokeStyle: isVisible ? dataset.borderColor : (isLight ? '#cbd5e1' : '#475569'),
-                                lineWidth: 2,
-                                pointStyle: 'circle',
-                                hidden: false, // PAKSA false agar tidak dicoret/strikethrough oleh Chart.js
-                                index: i,
-                                datasetIndex: i,
-                                fontColor: fontColor
-                            };
-                        });
-                    }
-                }
+                display: false
             },
             tooltip: {
                 backgroundColor: initColors.tooltipBg,
@@ -399,10 +365,32 @@ const roomsenseChart = new Chart(ctxMain, {
     }
 });
 
+// ====== CUSTOM LEGEND BUTTONS SINKRONISASI ======
+const legendButtons = {
+    0: { btn: document.getElementById('legend-temp'), activeClass: 'active-temp' },
+    1: { btn: document.getElementById('legend-humid'), activeClass: 'active-humid' },
+    2: { btn: document.getElementById('legend-hi'), activeClass: 'active-hi' }
+};
+
+Object.keys(legendButtons).forEach(indexStr => {
+    const index = parseInt(indexStr);
+    const item = legendButtons[index];
+    if (item.btn) {
+        item.btn.addEventListener('click', () => {
+            const isVisible = roomsenseChart.isDatasetVisible(index);
+            if (isVisible) {
+                roomsenseChart.hide(index);
+                item.btn.classList.remove(item.activeClass);
+            } else {
+                roomsenseChart.show(index);
+                item.btn.classList.add(item.activeClass);
+            }
+        });
+    }
+});
+
 function updateChartThemeColors(theme) {
     const colors = getThemeColors(theme);
-    
-    roomsenseChart.options.plugins.legend.labels.color = colors.tickColor;
     
     roomsenseChart.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
     roomsenseChart.options.plugins.tooltip.titleColor = colors.tooltipText;
