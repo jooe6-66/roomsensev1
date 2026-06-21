@@ -1024,6 +1024,10 @@ body {
         grid-template-columns: 80px 1fr; /* Perkecil Sidebar */
     }
     
+    .logo-section {
+        justify-content: center;
+    }
+    
     .logo-text, .profile-info, .menu-item span {
         display: none; /* Sembunyikan teks */
     }
@@ -1056,6 +1060,7 @@ body {
     .sidebar {
         position: fixed;
         bottom: 0;
+        top: auto; /* Reset top warisan desktop sticky */
         left: 0;
         right: 0;
         height: 68px;
