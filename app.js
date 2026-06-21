@@ -1,24 +1,20 @@
 // ====== KONFIGURASI BACKEND ======
-// Ganti dengan URL Ngrok / Domain Publik Anda jika di-hosting di GitHub Pages (misal: "https://abcd-123.ngrok-free.app").
-// Jika dijalankan secara lokal di Node-RED, biarkan kosong "" agar otomatis mendeteksi alamat IP lokal.
 const BACKEND_URL = "https://unengaged-finalist-married.ngrok-free.dev"; 
 // =================================
 
 // Fungsi helper untuk mendapatkan URL API
 const getApiUrl = (path) => {
     if (BACKEND_URL) {
-        // Hapus trailing slash jika ada di BACKEND_URL
         const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
         return `${base}${path}`;
     }
-    return path; // Path relatif untuk local Node-RED
+    return path;
 };
 
 // Fungsi helper untuk mendapatkan URL WebSocket
 const getWsUrl = (path) => {
     if (BACKEND_URL) {
         const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
-        // Ganti protokol http/https menjadi ws/wss
         const wsBase = base.replace(/^http/, 'ws');
         return `${wsBase}${path}`;
     }
@@ -29,17 +25,246 @@ const getWsUrl = (path) => {
 // Sesuaikan URL download link (CSV) secara dinamis
 document.getElementById('download-link').href = getApiUrl('/api/export');
 
-// Inisialisasi Chart.js
-const ctx = document.getElementById('roomsenseChart').getContext('2d');
-const roomsenseChart = new Chart(ctx, {
+/* ==========================================================================
+   DYNAMIC CONFIGURATION (LOCAL STORAGE)
+   ========================================================================== */
+let CONFIG = {
+    tempMin: parseFloat(localStorage.getItem('tempMin')) || 20.0,
+    tempMax: parseFloat(localStorage.getItem('tempMax')) || 26.0,
+    humidMin: parseInt(localStorage.getItem('humidMin')) || 40,
+    humidMax: parseInt(localStorage.getItem('humidMax')) || 60,
+    interval: parseInt(localStorage.getItem('interval')) || 30
+};
+
+/* ==========================================================================
+   SYSTEM THEME MODE SWITCHER
+   ========================================================================== */
+const themeSwitch = document.getElementById('theme-switch');
+const htmlElement = document.documentElement;
+
+// Ambil status tema yang tersimpan
+const savedTheme = localStorage.getItem('theme') || 'dark';
+htmlElement.setAttribute('data-theme', savedTheme);
+themeSwitch.checked = (savedTheme === 'light');
+
+themeSwitch.addEventListener('change', (e) => {
+    const targetTheme = e.target.checked ? 'light' : 'dark';
+    htmlElement.setAttribute('data-theme', targetTheme);
+    localStorage.setItem('theme', targetTheme);
+    
+    // Perbarui warna grafik agar cocok dengan tema baru
+    updateChartThemeColors(targetTheme);
+});
+
+// Mendapatkan konfigurasi warna berdasarkan tema saat ini
+function getThemeColors(theme) {
+    const isLight = (theme === 'light');
+    return {
+        gridColor: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+        tickColor: isLight ? '#64748b' : '#7e7c9c',
+        tooltipBg: isLight ? '#ffffff' : '#121124',
+        tooltipBorder: isLight ? '#e2e8f0' : '#201e3d',
+        tooltipText: isLight ? '#1e1b4b' : '#f8fafc'
+    };
+}
+
+/* ==========================================================================
+   SINGLE PAGE APPLICATION (TAB SWITCHING)
+   ========================================================================== */
+function switchTab(tabId) {
+    // Sembunyikan semua konten tab
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+        tab.classList.remove('active');
+    });
+
+    // Tampilkan tab yang dipilih
+    const targetTab = document.getElementById(`${tabId}-tab`);
+    if (targetTab) {
+        targetTab.style.display = 'block';
+        targetTab.classList.add('active');
+    }
+
+    // Perbarui judul halaman di Header
+    const titles = {
+        overview: 'Dashboard Overview',
+        reports: 'Laporan Sensor',
+        users: 'Daftar Pengguna',
+        settings: 'Pengaturan Sistem'
+    };
+    document.getElementById('page-title').textContent = titles[tabId] || 'Dashboard';
+
+    // Perbarui status aktif di Sidebar Menu
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-tab') === tabId) {
+            item.classList.add('active');
+        }
+    });
+}
+
+// Pasang event listener klik pada item menu sidebar
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tabId = item.getAttribute('data-tab');
+        if (tabId) switchTab(tabId);
+    });
+});
+
+/* ==========================================================================
+   SETTINGS FORM CONTROL
+   ========================================================================== */
+function loadSettingsForm() {
+    document.getElementById('set-temp-min').value = CONFIG.tempMin;
+    document.getElementById('set-temp-max').value = CONFIG.tempMax;
+    document.getElementById('set-humid-min').value = CONFIG.humidMin;
+    document.getElementById('set-humid-max').value = CONFIG.humidMax;
+    document.getElementById('set-interval').value = CONFIG.interval;
+}
+
+const settingsForm = document.getElementById('settings-form');
+if (settingsForm) {
+    settingsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const tempMin = parseFloat(document.getElementById('set-temp-min').value);
+        const tempMax = parseFloat(document.getElementById('set-temp-max').value);
+        const humidMin = parseInt(document.getElementById('set-humid-min').value);
+        const humidMax = parseInt(document.getElementById('set-humid-max').value);
+        const interval = parseInt(document.getElementById('set-interval').value);
+
+        // Validasi input sederhana
+        if (tempMin >= tempMax) {
+            showSaveStatus("Validasi Gagal: Suhu minimum harus lebih kecil dari suhu maksimum!", false);
+            return;
+        }
+        if (humidMin >= humidMax) {
+            showSaveStatus("Validasi Gagal: Kelembaban minimum harus lebih kecil dari kelembaban maksimum!", false);
+            return;
+        }
+
+        // Simpan ke Local Storage
+        localStorage.setItem('tempMin', tempMin);
+        localStorage.setItem('tempMax', tempMax);
+        localStorage.setItem('humidMin', humidMin);
+        localStorage.setItem('humidMax', humidMax);
+        localStorage.setItem('interval', interval);
+
+        // Update objek CONFIG di memori
+        CONFIG.tempMin = tempMin;
+        CONFIG.tempMax = tempMax;
+        CONFIG.humidMin = humidMin;
+        CONFIG.humidMax = humidMax;
+        CONFIG.interval = interval;
+
+        // Ambil nilai sensor saat ini dan langsung evaluasi ulang status badge
+        const currentTemp = parseFloat(document.getElementById('temp-val').textContent);
+        const currentHumid = parseFloat(document.getElementById('humid-val').textContent);
+        const currentHi = parseFloat(document.getElementById('hi-val').textContent);
+
+        updateAllMetrics(
+            isNaN(currentTemp) ? null : currentTemp, 
+            isNaN(currentHumid) ? null : currentHumid, 
+            isNaN(currentHi) ? null : currentHi
+        );
+
+        showSaveStatus("Konfigurasi sistem berhasil disimpan secara lokal!", true);
+    });
+}
+
+function showSaveStatus(message, isSuccess) {
+    const statusEl = document.getElementById('save-status');
+    statusEl.textContent = message;
+    statusEl.className = `save-status show ${isSuccess ? 'success' : 'error'}`;
+    
+    // Sembunyikan notifikasi setelah 4 detik
+    setTimeout(() => {
+        statusEl.className = "save-status";
+    }, 4000);
+}
+
+/* ==========================================================================
+   SPARKLINE (MINI CHART) GENERATOR
+   ========================================================================== */
+function createSparkline(canvasId, lineColor, rgbColor) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    const fillGradient = ctx.createLinearGradient(0, 0, 0, 45);
+    fillGradient.addColorStop(0, `rgba(${rgbColor}, 0.2)`);
+    fillGradient.addColorStop(1, `rgba(${rgbColor}, 0)`);
+
+    return new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(10).fill(''),
+            datasets: [{
+                data: [],
+                borderColor: lineColor,
+                backgroundColor: fillGradient,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            }
+        }
+    });
+}
+
+// Inisialisasi masing-masing Sparkline
+const tempSparkline = createSparkline('tempSparkline', '#f43f5e', '244, 63, 94');
+const humidSparkline = createSparkline('humidSparkline', '#0ea5e9', '14, 165, 233');
+const hiSparkline = createSparkline('hiSparkline', '#eab308', '234, 179, 8');
+
+function pushToSparkline(chart, value) {
+    chart.data.datasets[0].data.push(value);
+    if (chart.data.datasets[0].data.length > 10) {
+        chart.data.datasets[0].data.shift();
+    }
+    chart.update('none');
+}
+
+/* ==========================================================================
+   MAIN INTERACTIVE CHART INITIALIZATION
+   ========================================================================== */
+const ctxMain = document.getElementById('roomsenseChart').getContext('2d');
+
+const tempGrad = ctxMain.createLinearGradient(0, 0, 0, 300);
+tempGrad.addColorStop(0, 'rgba(244, 63, 94, 0.15)');
+tempGrad.addColorStop(1, 'rgba(244, 63, 94, 0)');
+
+const humidGrad = ctxMain.createLinearGradient(0, 0, 0, 300);
+humidGrad.addColorStop(0, 'rgba(14, 165, 233, 0.15)');
+humidGrad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+
+const hiGrad = ctxMain.createLinearGradient(0, 0, 0, 300);
+hiGrad.addColorStop(0, 'rgba(234, 179, 8, 0.15)');
+hiGrad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+
+const initColors = getThemeColors(savedTheme);
+
+const roomsenseChart = new Chart(ctxMain, {
     type: 'line',
     data: {
         labels: [],
         datasets: [
             {
                 label: 'Suhu (°C)',
-                borderColor: '#f43f5e', // Rose 500
-                backgroundColor: 'rgba(244, 63, 94, 0.03)',
+                borderColor: '#f43f5e',
+                backgroundColor: tempGrad,
                 data: [],
                 borderWidth: 2.5,
                 tension: 0.3,
@@ -49,8 +274,8 @@ const roomsenseChart = new Chart(ctx, {
             },
             {
                 label: 'Kelembaban (%)',
-                borderColor: '#0ea5e9', // Sky 500
-                backgroundColor: 'rgba(14, 165, 233, 0.03)',
+                borderColor: '#0ea5e9',
+                backgroundColor: humidGrad,
                 data: [],
                 borderWidth: 2.5,
                 tension: 0.3,
@@ -60,8 +285,8 @@ const roomsenseChart = new Chart(ctx, {
             },
             {
                 label: 'Heat Index (°C)',
-                borderColor: '#eab308', // Amber 500
-                backgroundColor: 'rgba(234, 179, 8, 0.03)',
+                borderColor: '#eab308',
+                backgroundColor: hiGrad,
                 data: [],
                 borderWidth: 2.5,
                 tension: 0.3,
@@ -78,13 +303,18 @@ const roomsenseChart = new Chart(ctx, {
             legend: {
                 position: 'top',
                 align: 'end',
-                labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12, weight: '500' }, boxWidth: 10, usePointStyle: true }
+                labels: {
+                    color: initColors.tickColor,
+                    font: { family: 'Outfit', size: 12, weight: '500' },
+                    boxWidth: 8,
+                    usePointStyle: true
+                }
             },
             tooltip: {
-                backgroundColor: '#1e293b',
-                titleColor: '#f8fafc',
-                bodyColor: '#94a3b8',
-                borderColor: '#334155',
+                backgroundColor: initColors.tooltipBg,
+                titleColor: initColors.tooltipText,
+                bodyColor: initColors.tickColor,
+                borderColor: initColors.tooltipBorder,
                 borderWidth: 1,
                 padding: 10,
                 bodyFont: { family: 'Outfit' },
@@ -93,51 +323,69 @@ const roomsenseChart = new Chart(ctx, {
         },
         scales: {
             x: {
-                grid: { color: 'rgba(255, 255, 255, 0.02)' },
-                ticks: { color: '#64748b', font: { family: 'Outfit', size: 10 } }
+                grid: { color: initColors.gridColor },
+                ticks: { color: initColors.tickColor, font: { family: 'Outfit', size: 10 } }
             },
             y: {
-                grid: { color: 'rgba(255, 255, 255, 0.02)' },
-                ticks: { color: '#64748b', font: { family: 'Outfit', size: 10 } }
+                grid: { color: initColors.gridColor },
+                ticks: { color: initColors.tickColor, font: { family: 'Outfit', size: 10 } }
             }
         }
     }
 });
 
-// Logika Status Kenyamanan / Evaluasi Ruangan
+function updateChartThemeColors(theme) {
+    const colors = getThemeColors(theme);
+    
+    roomsenseChart.options.plugins.legend.labels.color = colors.tickColor;
+    
+    roomsenseChart.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
+    roomsenseChart.options.plugins.tooltip.titleColor = colors.tooltipText;
+    roomsenseChart.options.plugins.tooltip.bodyColor = colors.tickColor;
+    roomsenseChart.options.plugins.tooltip.borderColor = colors.tooltipBorder;
+    
+    roomsenseChart.options.scales.x.grid.color = colors.gridColor;
+    roomsenseChart.options.scales.x.ticks.color = colors.tickColor;
+    roomsenseChart.options.scales.y.grid.color = colors.gridColor;
+    roomsenseChart.options.scales.y.ticks.color = colors.tickColor;
+    
+    roomsenseChart.update();
+}
+
+/* ==========================================================================
+   METRIC STATUS VALUES AND EVALUATIONS (DYNAMIC WITH CONFIG)
+   ========================================================================== */
 function evaluateTemperature(temp) {
     const el = document.getElementById('temp-badge');
     const desc = document.getElementById('temp-desc');
-    if (temp < 20) {
+    desc.textContent = `Rentang nyaman: ${CONFIG.tempMin.toFixed(1)}-${CONFIG.tempMax.toFixed(1)}°C`;
+    
+    if (temp < CONFIG.tempMin) {
         el.className = "comfort-badge badge-warning";
         el.textContent = "Dingin";
-        desc.textContent = "Suhu di bawah rentang nyaman.";
-    } else if (temp >= 20 && temp <= 26) {
+    } else if (temp >= CONFIG.tempMin && temp <= CONFIG.tempMax) {
         el.className = "comfort-badge badge-normal";
         el.textContent = "Nyaman";
-        desc.textContent = "Suhu ruangan ideal.";
     } else {
         el.className = "comfort-badge badge-danger";
         el.textContent = "Panas";
-        desc.textContent = "Suhu ruangan terlalu tinggi.";
     }
 }
 
 function evaluateHumidity(humid) {
     const el = document.getElementById('humid-badge');
     const desc = document.getElementById('humid-desc');
-    if (humid < 40) {
+    desc.textContent = `Rentang nyaman: ${CONFIG.humidMin}-${CONFIG.humidMax}%`;
+    
+    if (humid < CONFIG.humidMin) {
         el.className = "comfort-badge badge-warning";
         el.textContent = "Kering";
-        desc.textContent = "Kelembaban terlalu rendah.";
-    } else if (humid >= 40 && humid <= 60) {
+    } else if (humid >= CONFIG.humidMin && humid <= CONFIG.humidMax) {
         el.className = "comfort-badge badge-normal";
         el.textContent = "Ideal";
-        desc.textContent = "Kelembaban udara ideal.";
     } else {
         el.className = "comfort-badge badge-danger";
         el.textContent = "Lembab";
-        desc.textContent = "Kelembaban terlalu tinggi.";
     }
 }
 
@@ -168,12 +416,15 @@ function updateAllMetrics(temp, humid, hi) {
     document.getElementById('humid-val').textContent = humid !== null ? parseFloat(humid).toFixed(1) : "--";
     document.getElementById('hi-val').textContent = hi !== null ? parseFloat(hi).toFixed(1) : "--";
 
-    if (temp !== null) evaluateTemperature(temp);
-    if (humid !== null) evaluateHumidity(humid);
-    if (hi !== null) evaluateHeatIndex(hi);
+    evaluateTemperature(temp !== null ? temp : 0);
+    evaluateHumidity(humid !== null ? humid : 0);
+    evaluateHeatIndex(hi !== null ? hi : 0);
 }
 
-// 1. Ambil Data Histori Awal
+/* ==========================================================================
+   DATA LOADER (HISTORY & REAL-TIME WEBSOCKET)
+   ========================================================================== */
+// 1. Ambil Data Histori Awal dari Database SQLite via API Node-RED
 fetch(getApiUrl('/api/history'))
     .then(res => res.json())
     .then(data => {
@@ -188,6 +439,10 @@ fetch(getApiUrl('/api/history'))
             roomsenseChart.data.datasets[0].data.push(temp);
             roomsenseChart.data.datasets[1].data.push(humid);
             roomsenseChart.data.datasets[2].data.push(hi);
+
+            if (temp !== null) pushToSparkline(tempSparkline, temp);
+            if (humid !== null) pushToSparkline(humidSparkline, humid);
+            if (hi !== null) pushToSparkline(hiSparkline, hi);
         });
         
         if (data.length > 0) {
@@ -227,10 +482,12 @@ ws.onmessage = (event) => {
         const humid = (data.humidity !== undefined) ? parseFloat(data.humidity) : null;
         const hi = (data.heat_index !== undefined && data.heat_index !== null) ? parseFloat(data.heat_index) : temp;
 
-        // Update Angka kartu & Evaluasi status
         updateAllMetrics(temp, humid, hi);
 
-        // Update Grafik
+        if (temp !== null) pushToSparkline(tempSparkline, temp);
+        if (humid !== null) pushToSparkline(humidSparkline, humid);
+        if (hi !== null) pushToSparkline(hiSparkline, hi);
+
         roomsenseChart.data.labels.push(timeLabel);
         roomsenseChart.data.datasets[0].data.push(temp);
         roomsenseChart.data.datasets[1].data.push(humid);
@@ -248,3 +505,11 @@ ws.onmessage = (event) => {
         console.error("Gagal membaca data WebSocket:", err);
     }
 };
+
+/* ==========================================================================
+   APP INITIALIZATION
+   ========================================================================== */
+// Load pengaturan awal ke form formulir saat web pertama dibuka
+loadSettingsForm();
+// Pemicu inisialisasi teks rentang nyaman pada kartu metrik
+updateAllMetrics(null, null, null);

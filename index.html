@@ -1,94 +1,258 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoomSense - Pemantauan Ruangan</title>
+    <title>RoomSense v1 - IoT Dashboard</title>
+    <!-- Font modern Outfit dari Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Pustaka Chart.js Resmi -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="dashboard-container">
-        <!-- Top Header -->
-        <header>
-            <div class="header-title">
-                <h1>RoomSense <span>•</span> Pemantauan Ruangan</h1>
-                <p>
-                    <span id="conn-dot" class="status-dot"></span>
-                    <span id="conn-text">Menghubungkan...</span>
-                </p>
-            </div>
-            <!-- Download Button linking to the Node-RED CSV API -->
-            <a href="/api/export" class="btn-download" id="download-link">
-                <!-- SVG Document Download Icon -->
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Unduh Data (CSV)
-            </a>
-        </header>
-
-        <!-- Main Content -->
-        <div class="main-grid">
-            <!-- Left: Chart -->
-            <div class="chart-section">
-                <div class="section-header">Grafik Tren 50 Data Terakhir</div>
-                <div class="chart-wrapper">
-                    <canvas id="roomsenseChart"></canvas>
+    <div class="app-container">
+        <!-- 1. LEFT SIDEBAR -->
+        <aside class="sidebar">
+            <div class="logo-section">
+                <!-- Ikon Logo SVG RoomSense -->
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+                <div class="logo-text">
+                    <h2>RoomSense</h2>
+                    <span>Version 1.0 (Beta)</span>
                 </div>
             </div>
 
-            <!-- Right: Metrics Cards -->
-            <div class="cards-section">
-                <!-- Card Suhu -->
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span>Suhu Aktual</span>
-                        <span class="metric-icon icon-temp">🌡️</span>
-                    </div>
-                    <div class="metric-body">
-                        <span class="metric-value" id="temp-val">--</span>
-                        <span class="metric-unit">°C</span>
-                    </div>
-                    <div class="metric-footer">
-                        <span class="comfort-badge badge-normal" id="temp-badge">Mengukur...</span>
-                        <span class="metric-desc" id="temp-desc">Rentang nyaman: 20-26°C</span>
+            <nav class="menu-list">
+                <a href="#" class="menu-item active" data-tab="overview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="menu-item" data-tab="reports">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    <span>Laporan</span>
+                </a>
+                <a href="#" class="menu-item" data-tab="users">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Pengguna</span>
+                </a>
+                <a href="#" class="menu-item" data-tab="settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <span>Pengaturan</span>
+                </a>
+            </nav>
+
+            <!-- Toggle Switcher di bagian bawah Sidebar -->
+            <div class="theme-toggle-section">
+                <span class="theme-icon">🌙</span>
+                <label class="switch">
+                    <input type="checkbox" id="theme-switch">
+                    <span class="slider round"></span>
+                </label>
+                <span class="theme-icon">☀️</span>
+            </div>
+        </aside>
+
+        <!-- 2. MAIN AREA (Right side) -->
+        <main class="main-area">
+            <!-- Top Navbar Header -->
+            <header class="top-navbar">
+                <div class="header-left">
+                    <h1 id="page-title">Dashboard</h1>
+                    <div class="status-indicator">
+                        <span id="conn-dot" class="status-dot"></span>
+                        <span id="conn-text">Menghubungkan...</span>
                     </div>
                 </div>
-
-                <!-- Card Kelembaban -->
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span>Kelembaban</span>
-                        <span class="metric-icon icon-humid">💧</span>
-                    </div>
-                    <div class="metric-body">
-                        <span class="metric-value" id="humid-val">--</span>
-                        <span class="metric-unit">%</span>
-                    </div>
-                    <div class="metric-footer">
-                        <span class="comfort-badge badge-normal" id="humid-badge">Mengukur...</span>
-                        <span class="metric-desc" id="humid-desc">Rentang nyaman: 40-60%</span>
+                
+                <div class="header-right">
+                    <!-- Download CSV Link -->
+                    <a href="/api/export" class="btn-download" id="download-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Unduh CSV
+                    </a>
+                    
+                    <!-- Profile Widget -->
+                    <div class="profile-card">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=60" alt="Avatar" class="avatar">
+                        <div class="profile-info">
+                            <span class="profile-name">User RoomSense</span>
+                            <span class="profile-role">Administrator</span>
+                        </div>
                     </div>
                 </div>
+            </header>
 
-                <!-- Card Heat Index -->
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span>Heat Index</span>
-                        <span class="metric-icon icon-hi">⚠️</span>
+            <!-- Tab 1: Overview (Dashboard) -->
+            <div id="overview-tab" class="tab-content active">
+                <div class="dashboard-grid">
+                    <!-- Row 1: 3 Metric Cards (Suhu, Kelembaban, Heat Index) -->
+                    <div class="metrics-row">
+                        <!-- Card Suhu -->
+                        <div class="metric-card card-temp">
+                            <div class="card-top">
+                                <div class="card-meta">
+                                    <span class="card-label">Suhu Aktual</span>
+                                    <div class="card-value-wrapper">
+                                        <span class="card-value" id="temp-val">--</span>
+                                        <span class="card-unit">°C</span>
+                                    </div>
+                                </div>
+                                <span class="metric-icon">🌡️</span>
+                            </div>
+                            <!-- Sparkline Canvas untuk grafik tren mini -->
+                            <div class="sparkline-container">
+                                <canvas id="tempSparkline"></canvas>
+                            </div>
+                            <div class="card-bottom">
+                                <span class="comfort-badge badge-normal" id="temp-badge">Mengukur...</span>
+                                <span class="metric-desc" id="temp-desc">Rentang nyaman: --</span>
+                            </div>
+                        </div>
+
+                        <!-- Card Kelembaban -->
+                        <div class="metric-card card-humid">
+                            <div class="card-top">
+                                <div class="card-meta">
+                                    <span class="card-label">Kelembaban</span>
+                                    <div class="card-value-wrapper">
+                                        <span class="card-value" id="humid-val">--</span>
+                                        <span class="card-unit">%</span>
+                                    </div>
+                                </div>
+                                <span class="metric-icon">💧</span>
+                            </div>
+                            <!-- Sparkline Canvas -->
+                            <div class="sparkline-container">
+                                <canvas id="humidSparkline"></canvas>
+                            </div>
+                            <div class="card-bottom">
+                                <span class="comfort-badge badge-normal" id="humid-badge">Mengukur...</span>
+                                <span class="metric-desc" id="humid-desc">Rentang nyaman: --</span>
+                            </div>
+                        </div>
+
+                        <!-- Card Heat Index -->
+                        <div class="metric-card card-hi">
+                            <div class="card-top">
+                                <div class="card-meta">
+                                    <span class="card-label">Heat Index</span>
+                                    <div class="card-value-wrapper">
+                                        <span class="card-value" id="hi-val">--</span>
+                                        <span class="card-unit">°C</span>
+                                    </div>
+                                </div>
+                                <span class="metric-icon">⚠️</span>
+                            </div>
+                            <!-- Sparkline Canvas -->
+                            <div class="sparkline-container">
+                                <canvas id="hiSparkline"></canvas>
+                            </div>
+                            <div class="card-bottom">
+                                <span class="comfort-badge badge-normal" id="hi-badge">Mengukur...</span>
+                                <span class="metric-desc" id="hi-desc">Suhu semu yang dirasakan</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="metric-body">
-                        <span class="metric-value" id="hi-val">--</span>
-                        <span class="metric-unit">°C</span>
-                    </div>
-                    <div class="metric-footer">
-                        <span class="comfort-badge badge-normal" id="hi-badge">Mengukur...</span>
-                        <span class="metric-desc" id="hi-desc">Suhu semu yang dirasakan</span>
+
+                    <!-- Row 2: Grafik Utama (Line Chart) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <h3>Grafik Tren Real-time</h3>
+                                <p>Visualisasi tren 50 data sensor terakhir</p>
+                            </div>
+                        </div>
+                        <div class="main-chart-wrapper">
+                            <canvas id="roomsenseChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Tab 2: Laporan (Placeholder) -->
+            <div id="reports-tab" class="tab-content" style="display: none;">
+                <div class="placeholder-card">
+                    <div class="placeholder-icon">📊</div>
+                    <h3>Menu Laporan Historis</h3>
+                    <p>Halaman ini akan menampilkan pencarian data berdasarkan filter kalender, statistik rata-rata jangka panjang, serta ekspor file laporan kustom.</p>
+                    <button class="btn-primary" onclick="switchTab('overview')">Kembali ke Dashboard</button>
+                </div>
+            </div>
+
+            <!-- Tab 3: Pengguna (Placeholder) -->
+            <div id="users-tab" class="tab-content" style="display: none;">
+                <div class="placeholder-card">
+                    <div class="placeholder-icon">👥</div>
+                    <h3>Menu Pengguna & Kontak</h3>
+                    <p>Halaman ini difungsikan untuk mendaftarkan kontak darurat penerima alarm suhu (seperti SMS, bot Telegram, atau WhatsApp) serta mengatur level hak akses perangkat.</p>
+                    <button class="btn-primary" onclick="switchTab('overview')">Kembali ke Dashboard</button>
+                </div>
+            </div>
+
+            <!-- Tab 4: Pengaturan (Functional Form) -->
+            <div id="settings-tab" class="tab-content" style="display: none;">
+                <div class="settings-card">
+                    <div class="settings-header">
+                        <h3>Konfigurasi Ambang Batas & Sistem</h3>
+                        <p>Atur batas kenyamanan suhu/kelembaban ruangan dan parameter transmisi ESP32 secara dinamis.</p>
+                    </div>
+                    
+                    <form id="settings-form" class="settings-form">
+                        <div class="form-section-title">Ambang Batas Nyaman (Badges Threshold)</div>
+                        
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="set-temp-min">Suhu Minimum Nyaman (°C)</label>
+                                <input type="number" id="set-temp-min" step="0.1" required>
+                                <span class="input-desc">Default: 20.0°C. Suhu di bawah nilai ini dianggap Dingin.</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="set-temp-max">Suhu Maksimum Nyaman (°C)</label>
+                                <input type="number" id="set-temp-max" step="0.1" required>
+                                <span class="input-desc">Default: 26.0°C. Suhu di atas nilai ini dianggap Panas.</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="set-humid-min">Kelembaban Minimum Nyaman (%)</label>
+                                <input type="number" id="set-humid-min" step="1" required>
+                                <span class="input-desc">Default: 40%. Kelembaban di bawah ini dianggap Kering.</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="set-humid-max">Kelembaban Maksimum Nyaman (%)</label>
+                                <input type="number" id="set-humid-max" step="1" required>
+                                <span class="input-desc">Default: 60%. Kelembaban di atas ini dianggap Lembab.</span>
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">Konfigurasi Pengiriman ESP32</div>
+                        <div class="form-group">
+                            <label for="set-interval">Interval Transmisi Data (detik)</label>
+                            <select id="set-interval" required>
+                                <option value="10">10 Detik (Pemantauan Cepat)</option>
+                                <option value="30">30 Detik (Standar Rekomendasi)</option>
+                                <option value="60">60 Detik (1 Menit)</option>
+                                <option value="300">300 Detik (5 Menit - Hemat Energi)</option>
+                            </select>
+                            <span class="input-desc">Mengatur seberapa sering sensor DHT22 membaca dan mengirim data melalui MQTT.</span>
+                        </div>
+
+                        <button type="submit" class="btn-save">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            Simpan Pengaturan
+                        </button>
+                        
+                        <div id="save-status" class="save-status"></div>
+                    </form>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="app.js"></script>
