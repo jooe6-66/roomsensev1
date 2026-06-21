@@ -1152,6 +1152,11 @@ body {
                 border-left-width 0.35s ease;
 }
 
+.app-container.chat-active .chat-sidebar-panel {
+    width: 380px;
+    opacity: 1;
+}
+
 .chat-sidebar-panel .chat-header {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
@@ -1317,5 +1322,6 @@ body {
     .app-container.chat-active .chat-sidebar-panel {
         right: 0;
         width: 100% !important;
+        opacity: 1;
     }
 }
