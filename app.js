@@ -132,7 +132,12 @@ document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', (e) => {
         e.preventDefault();
         const tabId = item.getAttribute('data-tab');
-        if (tabId) switchTab(tabId);
+        if (tabId === 'chatbot') {
+            toggleChatbot();
+        } else if (tabId) {
+            toggleChatbot(false); // Tutup chatbot jika beralih ke tab lain
+            switchTab(tabId);
+        }
     });
 });
 
@@ -913,4 +918,110 @@ if (btnExportReports) {
     btnExportReports.addEventListener('click', () => {
         exportFilteredReports();
     });
+}
+
+// ==========================================================================
+// CHATBOT SIDE PANEL LOGIC
+// ==========================================================================
+const appContainer = document.querySelector('.app-container');
+const chatbotMenuItem = document.getElementById('menu-chatbot');
+const chatSidebarPanel = document.getElementById('chat-sidebar-panel');
+const chatCloseBtn = document.getElementById('chat-close-btn');
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+
+function toggleChatbot(forceState) {
+    if (!appContainer || !chatSidebarPanel) return;
+    
+    const isOpen = forceState !== undefined ? forceState : !appContainer.classList.contains('chat-active');
+    
+    if (isOpen) {
+        chatSidebarPanel.style.display = 'flex';
+        // Berikan jeda sejenak agar browser merender display: flex sebelum transisi CSS lebar berjalan
+        setTimeout(() => {
+            appContainer.classList.add('chat-active');
+            if (chatbotMenuItem) chatbotMenuItem.classList.add('active');
+            if (chatInput) chatInput.focus();
+            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 10);
+    } else {
+        appContainer.classList.remove('chat-active');
+        if (chatbotMenuItem) chatbotMenuItem.classList.remove('active');
+        
+        // Sembunyikan panel secara fisik setelah transisi CSS selesai (350ms)
+        setTimeout(() => {
+            chatSidebarPanel.style.display = 'none';
+        }, 350);
+        
+        // Kembalikan highlight aktif ke tab riil yang sedang berjalan di belakang layar
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab) {
+            const activeTabId = activeTab.id.replace('-tab', '');
+            document.querySelectorAll('.menu-item').forEach(item => {
+                if (item.getAttribute('data-tab') === activeTabId) {
+                    item.classList.add('active');
+                } else if (item.getAttribute('data-tab') !== 'chatbot') {
+                    item.classList.remove('active');
+                }
+            });
+        }
+    }
+}
+
+if (chatCloseBtn) {
+    chatCloseBtn.addEventListener('click', () => {
+        toggleChatbot(false);
+    });
+}
+
+if (chatForm && chatInput && chatMessages) {
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const messageText = chatInput.value.trim();
+        if (!messageText) return;
+        
+        // Tampilkan pesan User
+        appendMessage(messageText, 'user-message');
+        chatInput.value = '';
+        
+        // Tampilkan typing indicator
+        const typingIndicator = appendMessage('AI sedang berpikir...', 'bot-message typing-message');
+        
+        // Kirim ke backend Node-RED
+        fetch(getApiUrl('/api/chat'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({ message: messageText })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Gagal menghubungi server chatbot");
+            return res.json();
+        })
+        .then(data => {
+            // Hapus typing indicator
+            typingIndicator.remove();
+            
+            // Tampilkan pesan Bot
+            const botResponse = data.response || "Maaf, saya tidak menerima jawaban yang valid dari server.";
+            appendMessage(botResponse, 'bot-message');
+        })
+        .catch(err => {
+            console.error("Chatbot error:", err);
+            typingIndicator.remove();
+            appendMessage("Gagal menghubungi asisten AI. Pastikan server Node-RED & ngrok aktif.", 'bot-message');
+        });
+    });
+}
+
+function appendMessage(text, senderClass) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${senderClass}`;
+    msgDiv.textContent = text;
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return msgDiv;
 }
