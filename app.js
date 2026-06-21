@@ -646,19 +646,30 @@ function parseCSV(csvText) {
 }
 
 function initDefaultFilterDates() {
-    const today = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(today.getDate() - 7);
-    
     const formatDate = (date) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     };
-    
-    document.getElementById('filter-start-date').value = formatDate(sevenDaysAgo);
-    document.getElementById('filter-end-date').value = formatDate(today);
+
+    if (historicalData && historicalData.length > 0) {
+        // Cari tanggal paling awal dan paling akhir dari data yang ada di database
+        const dates = historicalData.map(row => row.dateObj);
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        
+        document.getElementById('filter-start-date').value = formatDate(minDate);
+        document.getElementById('filter-end-date').value = formatDate(maxDate);
+    } else {
+        // Fallback jika tidak ada data sama sekali
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        
+        document.getElementById('filter-start-date').value = formatDate(sevenDaysAgo);
+        document.getElementById('filter-end-date').value = formatDate(today);
+    }
 }
 
 function filterReports() {
