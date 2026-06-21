@@ -132,12 +132,7 @@ document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', (e) => {
         e.preventDefault();
         const tabId = item.getAttribute('data-tab');
-        if (tabId === 'chatbot') {
-            toggleChatbot();
-        } else if (tabId) {
-            toggleChatbot(false); // Tutup chatbot jika beralih ke tab lain
-            switchTab(tabId);
-        }
+        if (tabId) switchTab(tabId);
     });
 });
 
@@ -921,57 +916,27 @@ if (btnExportReports) {
 }
 
 // ==========================================================================
-// CHATBOT SIDE PANEL LOGIC
+// CHATBOT FLOATING POPUP LOGIC
 // ==========================================================================
-const appContainer = document.querySelector('.app-container');
-const chatbotMenuItem = document.getElementById('menu-chatbot');
-const chatSidebarPanel = document.getElementById('chat-sidebar-panel');
+const chatTriggerBtn = document.getElementById('chat-trigger-btn');
 const chatCloseBtn = document.getElementById('chat-close-btn');
+const chatWindow = document.getElementById('chat-window');
 const chatForm = document.getElementById('chat-form');
 const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
 
-function toggleChatbot(forceState) {
-    if (!appContainer || !chatSidebarPanel) return;
-    
-    const isOpen = forceState !== undefined ? forceState : !appContainer.classList.contains('chat-active');
-    
-    if (isOpen) {
-        chatSidebarPanel.style.display = 'flex';
-        // Berikan jeda sejenak agar browser merender display: flex sebelum transisi CSS lebar berjalan
-        setTimeout(() => {
-            appContainer.classList.add('chat-active');
-            if (chatbotMenuItem) chatbotMenuItem.classList.add('active');
+if (chatTriggerBtn && chatCloseBtn && chatWindow) {
+    chatTriggerBtn.addEventListener('click', () => {
+        const isVisible = chatWindow.style.display !== 'none';
+        chatWindow.style.display = isVisible ? 'none' : 'flex';
+        if (!isVisible) {
             if (chatInput) chatInput.focus();
             if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 10);
-    } else {
-        appContainer.classList.remove('chat-active');
-        if (chatbotMenuItem) chatbotMenuItem.classList.remove('active');
-        
-        // Sembunyikan panel secara fisik setelah transisi CSS selesai (350ms)
-        setTimeout(() => {
-            chatSidebarPanel.style.display = 'none';
-        }, 350);
-        
-        // Kembalikan highlight aktif ke tab riil yang sedang berjalan di belakang layar
-        const activeTab = document.querySelector('.tab-content.active');
-        if (activeTab) {
-            const activeTabId = activeTab.id.replace('-tab', '');
-            document.querySelectorAll('.menu-item').forEach(item => {
-                if (item.getAttribute('data-tab') === activeTabId) {
-                    item.classList.add('active');
-                } else if (item.getAttribute('data-tab') !== 'chatbot') {
-                    item.classList.remove('active');
-                }
-            });
         }
-    }
-}
+    });
 
-if (chatCloseBtn) {
     chatCloseBtn.addEventListener('click', () => {
-        toggleChatbot(false);
+        chatWindow.style.display = 'none';
     });
 }
 
