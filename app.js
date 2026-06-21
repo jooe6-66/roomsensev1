@@ -22,6 +22,32 @@ const getWsUrl = (path) => {
     return `${wsProtocol}//${window.location.host}${path}`;
 };
 
+// Fungsi helper untuk menampilkan Toast Notification melayang
+const showToast = (message, type = 'success') => {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    let icon = '✨';
+    if (type === 'success') icon = '✅';
+    else if (type === 'error') icon = '❌';
+    else if (type === 'warning') icon = '⚠️';
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Hapus dari DOM setelah 4 detik
+    setTimeout(() => {
+        toast.remove();
+    }, 4000);
+};
+
 
 
 /* ==========================================================================
@@ -220,13 +246,18 @@ if (settingsForm) {
 
 function showSaveStatus(message, isSuccess) {
     const statusEl = document.getElementById('save-status');
-    statusEl.textContent = message;
-    statusEl.className = `save-status show ${isSuccess ? 'success' : 'error'}`;
+    if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.className = `save-status show ${isSuccess ? 'success' : 'error'}`;
+        
+        // Sembunyikan notifikasi setelah 4 detik
+        setTimeout(() => {
+            statusEl.className = "save-status";
+        }, 4000);
+    }
     
-    // Sembunyikan notifikasi setelah 4 detik
-    setTimeout(() => {
-        statusEl.className = "save-status";
-    }, 4000);
+    // Tampilkan Toast Premium
+    showToast(message, isSuccess ? 'success' : 'error');
 }
 
 /* ==========================================================================
@@ -563,26 +594,66 @@ fetch(getApiUrl('/api/history'), {
     })
     .catch(err => console.error("Gagal memuat data histori:", err));
 
-// 2. Koneksi WebSocket untuk Data Real-time
+// 2. Koneksi WebSocket untuk Data Real-time & Deteksi Status Sensor
 const wsUrl = getWsUrl('/ws/sensor');
 const ws = new WebSocket(wsUrl);
 
 const connDot = document.getElementById('conn-dot');
 const connText = document.getElementById('conn-text');
 
+let lastMessageTime = Date.now();
+let sensorOfflineTriggered = false;
+
+function setSensorOnlineStatus(online) {
+    const dot = document.getElementById('conn-dot');
+    const text = document.getElementById('conn-text');
+    const cards = document.querySelectorAll('.metric-card');
+    
+    if (online) {
+        if (dot) dot.className = "status-dot online";
+        if (text) text.textContent = "Terhubung";
+        cards.forEach(card => card.classList.remove('stale-data'));
+        if (sensorOfflineTriggered) {
+            showToast("Sensor ESP32 terhubung kembali!", "success");
+            sensorOfflineTriggered = false;
+        }
+    } else {
+        if (dot) dot.className = "status-dot offline-sensor";
+        if (text) text.textContent = "Sensor Offline";
+        cards.forEach(card => card.classList.add('stale-data'));
+        if (!sensorOfflineTriggered) {
+            showToast("Sensor terputus! Data tidak diperbarui.", "warning");
+            sensorOfflineTriggered = true;
+        }
+    }
+}
+
 ws.onopen = () => {
     connDot.className = "status-dot online";
     connText.textContent = "Terhubung";
+    lastMessageTime = Date.now(); // Reset timer saat koneksi websocket terbuka
 };
 
 ws.onclose = () => {
     connDot.className = "status-dot";
     connText.textContent = "Terputus";
+    showToast("Server Node-RED terputus!", "error");
 };
 
 ws.onmessage = (event) => {
     try {
         const data = JSON.parse(event.data);
+        
+        // Deteksi pesan LWT status MQTT dari ESP32
+        if (data.status === "offline") {
+            setSensorOnlineStatus(false);
+            return;
+        }
+        
+        // Setiap menerima pesan sensor baru, perbarui waktu dan status online
+        lastMessageTime = Date.now();
+        setSensorOnlineStatus(true);
+
         const timeLabel = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         
         const temp = (data.temperature !== undefined) ? parseFloat(data.temperature) : null;
@@ -612,6 +683,17 @@ ws.onmessage = (event) => {
         console.error("Gagal membaca data WebSocket:", err);
     }
 };
+
+// Cek status heartbeat sensor secara berkala (setiap 5 detik)
+setInterval(() => {
+    const savedInterval = parseInt(localStorage.getItem('interval') || '30') * 1000;
+    const threshold = Math.max(savedInterval * 2, 20000); // Batas minimal 20 detik sebelum dianggap offline
+    
+    // Jika tidak ada data MQTT baru melewati batas threshold, nyatakan offline
+    if (Date.now() - lastMessageTime > threshold) {
+        setSensorOnlineStatus(false);
+    }
+}, 5000);
 
 /* ==========================================================================
    APP INITIALIZATION
@@ -914,7 +996,7 @@ function exportFilteredReports() {
     });
     
     if (filtered.length === 0) {
-        alert("Tidak ada data untuk diekspor!");
+        showToast("Tidak ada data untuk diekspor!", "error");
         return;
     }
     
@@ -932,6 +1014,8 @@ function exportFilteredReports() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    showToast("Laporan sensor berhasil diekspor ke CSV!", "success");
 }
 
 // Register reports event listeners
@@ -988,14 +1072,24 @@ if (chatForm && chatInput && chatMessages) {
         // Tampilkan typing indicator
         const typingIndicator = appendMessage('AI sedang berpikir...', 'bot-message typing-message');
         
-        // Kirim ke backend Node-RED
+        // Kirim ke backend Node-RED beserta data batas kenyamanan
+        const payloadObj = {
+            message: messageText,
+            settings: {
+                temp_min: localStorage.getItem('tempMin') || '20.0',
+                temp_max: localStorage.getItem('tempMax') || '26.0',
+                humid_min: localStorage.getItem('humidMin') || '40',
+                humid_max: localStorage.getItem('humidMax') || '60'
+            }
+        };
+
         fetch(getApiUrl('/api/chat'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true'
             },
-            body: JSON.stringify({ message: messageText })
+            body: JSON.stringify(payloadObj)
         })
         .then(res => {
             if (!res.ok) throw new Error("Gagal menghubungi server chatbot");
@@ -1013,6 +1107,7 @@ if (chatForm && chatInput && chatMessages) {
             console.error("Chatbot error:", err);
             typingIndicator.remove();
             appendMessage("Gagal menghubungi asisten AI. Pastikan server Node-RED & ngrok aktif.", 'bot-message');
+            showToast("Koneksi chatbot gagal! Cek server & ngrok.", "error");
         });
     });
 }
