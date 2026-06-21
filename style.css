@@ -651,70 +651,33 @@ body {
 /* ==========================================================================
    THEME SWITCHER BUTTON STYLING
    ========================================================================== */
-.theme-toggle-section {
+.btn-theme-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.theme-icon {
-    font-size: 1.1rem;
-}
-
-/* Switch Container */
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 46px;
-    height: 24px;
-}
-
-.switch input { 
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.slider {
-    position: absolute;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--border-color);
-    transition: .3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: var(--text-primary);
-    transition: .3s;
+.btn-theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
 }
 
-input:checked + .slider {
-    background-color: var(--accent);
+.btn-theme-toggle svg {
+    transition: transform 0.5s ease;
 }
 
-input:checked + .slider:before {
-    transform: translateX(22px);
-}
-
-/* Rounded Sliders */
-.slider.round {
-    border-radius: 24px;
-}
-
-.slider.round:before {
-    border-radius: 50%;
+.btn-theme-toggle:active svg {
+    transform: rotate(45deg);
 }
 
 /* ==========================================================================
@@ -755,17 +718,84 @@ input:checked + .slider:before {
     }
     
     .sidebar {
-        display: none; /* Sembunyikan sidebar di hp */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 68px;
+        width: 100%;
+        background-color: var(--bg-surface);
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+        padding: 0 0.5rem;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .logo-section {
+        display: none;
+    }
+    
+    .menu-list {
+        flex-direction: row;
+        gap: 0.25rem;
+        flex-grow: 1;
+        justify-content: space-around;
+        align-items: center;
+        margin: 0;
+    }
+    
+    .menu-item {
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.5rem 0.25rem;
+        font-size: 0.7rem;
+        align-items: center;
+        border: none;
+        border-radius: 8px;
+        flex: 1;
+        max-width: 80px;
+        justify-content: center;
+    }
+    
+    .menu-item span {
+        display: inline;
+        font-size: 0.65rem;
+    }
+    
+    .menu-item svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .main-area {
+        padding: 1rem 1rem 6rem 1rem;
     }
     
     .top-navbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 1rem 0;
+    }
+    
+    .header-left h1 {
+        font-size: 1.2rem;
     }
     
     .header-right {
-        width: 100%;
-        justify-content: space-between;
+        width: auto;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    
+    .btn-download {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
     }
 }
