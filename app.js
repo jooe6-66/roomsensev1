@@ -169,7 +169,28 @@ if (settingsForm) {
             isNaN(currentHi) ? null : currentHi
         );
 
-        showSaveStatus("Konfigurasi sistem berhasil disimpan secara lokal!", true);
+        // Kirim konfigurasi ke server Node-RED via HTTP POST
+        fetch(getApiUrl('/api/settings'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tempMin: tempMin,
+                tempMax: tempMax,
+                humidMin: humidMin,
+                humidMax: humidMax,
+                interval: interval
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Gagal mengirim ke server Node-RED");
+            showSaveStatus("Konfigurasi disimpan secara lokal & berhasil diterapkan ke ESP32!", true);
+        })
+        .catch(err => {
+            console.error("Gagal mengirim ke backend Node-RED:", err);
+            showSaveStatus("Tersimpan di browser, gagal memperbarui server (Pastikan ngrok aktif).", false);
+        });
     });
 }
 
