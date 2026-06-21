@@ -22,8 +22,7 @@ const getWsUrl = (path) => {
     return `${wsProtocol}//${window.location.host}${path}`;
 };
 
-// Sesuaikan URL download link (CSV) secara dinamis
-document.getElementById('download-link').href = getApiUrl('/api/export');
+
 
 /* ==========================================================================
    DYNAMIC CONFIGURATION (LOCAL STORAGE)
