@@ -36,6 +36,10 @@ let CONFIG = {
     interval: parseInt(localStorage.getItem('interval')) || 30
 };
 
+// ====== HISTORICAL REPORTS STATE ======
+let historicalData = [];
+let reportChartInstance = null;
+
 /* ==========================================================================
    SYSTEM THEME MODE SWITCHER
    ========================================================================== */
@@ -118,6 +122,10 @@ function switchTab(tabId) {
             item.classList.add('active');
         }
     });
+
+    if (tabId === 'reports') {
+        fetchHistoricalData();
+    }
 }
 
 // Pasang event listener klik pada item menu sidebar
@@ -403,6 +411,22 @@ function updateChartThemeColors(theme) {
     roomsenseChart.options.scales.y.ticks.color = colors.tickColor;
     
     roomsenseChart.update();
+    
+    // Perbarui pula tema warna pada chart laporan historis jika sedang aktif
+    if (reportChartInstance) {
+        reportChartInstance.options.plugins.legend.labels.color = colors.tickColor;
+        reportChartInstance.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
+        reportChartInstance.options.plugins.tooltip.titleColor = colors.tooltipText;
+        reportChartInstance.options.plugins.tooltip.bodyColor = colors.tickColor;
+        reportChartInstance.options.plugins.tooltip.borderColor = colors.tooltipBorder;
+        
+        reportChartInstance.options.scales.x.grid.color = colors.gridColor;
+        reportChartInstance.options.scales.x.ticks.color = colors.tickColor;
+        reportChartInstance.options.scales.y.grid.color = colors.gridColor;
+        reportChartInstance.options.scales.y.ticks.color = colors.tickColor;
+        
+        reportChartInstance.update();
+    }
 }
 
 /* ==========================================================================
@@ -566,3 +590,310 @@ ws.onmessage = (event) => {
 loadSettingsForm();
 // Pemicu inisialisasi teks rentang nyaman pada kartu metrik
 updateAllMetrics(null, null, null);
+
+// ====== HISTORICAL REPORTS LOGIC ======
+function fetchHistoricalData() {
+    fetch(getApiUrl('/api/export'))
+        .then(res => {
+            if (!res.ok) throw new Error("Gagal mengambil data historis");
+            return res.text();
+        })
+        .then(csvText => {
+            historicalData = parseCSV(csvText);
+            
+            // Set tanggal default jika belum diisi
+            const startInput = document.getElementById('filter-start-date');
+            const endInput = document.getElementById('filter-end-date');
+            if (startInput && !startInput.value) {
+                initDefaultFilterDates();
+            }
+            
+            // Lakukan pemfilteran pertama kali
+            filterReports();
+        })
+        .catch(err => {
+            console.error("Gagal memuat laporan historis:", err);
+        });
+}
+
+function parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const cols = line.split(',');
+        if (cols.length < 5) continue;
+        
+        const id = cols[0];
+        const timestamp = cols[1].replace(/"/g, ''); // Hapus tanda kutip ganda
+        const temperature = parseFloat(cols[2]);
+        const humidity = parseFloat(cols[3]);
+        const heat_index = parseFloat(cols[4]);
+        
+        if (isNaN(temperature) || isNaN(humidity)) continue;
+        
+        result.push({
+            id,
+            timestamp,
+            temperature,
+            humidity,
+            heat_index,
+            dateObj: new Date(timestamp.replace(/-/g, '/')) // Biar aman cross-browser parsing
+        });
+    }
+    return result;
+}
+
+function initDefaultFilterDates() {
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    
+    const formatDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+    
+    document.getElementById('filter-start-date').value = formatDate(sevenDaysAgo);
+    document.getElementById('filter-end-date').value = formatDate(today);
+}
+
+function filterReports() {
+    const startDateStr = document.getElementById('filter-start-date').value;
+    const endDateStr = document.getElementById('filter-end-date').value;
+    
+    if (!startDateStr || !endDateStr) return;
+    
+    const start = new Date(startDateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDateStr);
+    end.setHours(23, 59, 59, 999);
+    
+    // Filter data yang berada dalam rentang
+    const filtered = historicalData.filter(row => {
+        return row.dateObj >= start && row.dateObj <= end;
+    });
+    
+    // Urutkan (Lama ke Baru untuk chart, Baru ke Lama untuk tabel)
+    const chartData = [...filtered].sort((a, b) => a.dateObj - b.dateObj);
+    const tableData = [...filtered].sort((a, b) => b.dateObj - a.dateObj);
+    
+    updateReportsStats(filtered);
+    renderReportsChart(chartData);
+    renderReportsTable(tableData);
+}
+
+function updateReportsStats(data) {
+    const count = data.length;
+    document.getElementById('stats-total-records').textContent = count;
+    
+    if (count === 0) {
+        document.getElementById('stats-avg-temp').textContent = '-- °C';
+        document.getElementById('stats-avg-humid').textContent = '-- %';
+        document.getElementById('stats-avg-hi').textContent = '-- °C';
+        return;
+    }
+    
+    let sumTemp = 0, sumHumid = 0, sumHi = 0;
+    data.forEach(row => {
+        sumTemp += row.temperature;
+        sumHumid += row.humidity;
+        sumHi += row.heat_index;
+    });
+    
+    document.getElementById('stats-avg-temp').textContent = (sumTemp / count).toFixed(1) + ' °C';
+    document.getElementById('stats-avg-humid').textContent = (sumHumid / count).toFixed(1) + ' %';
+    document.getElementById('stats-avg-hi').textContent = (sumHi / count).toFixed(1) + ' °C';
+}
+
+function renderReportsChart(data) {
+    const ctx = document.getElementById('reportChart').getContext('2d');
+    
+    const labels = data.map(row => {
+        return row.dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' +
+               row.dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    });
+    
+    const temps = data.map(row => row.temperature);
+    const humids = data.map(row => row.humidity);
+    const his = data.map(row => row.heat_index);
+    
+    if (reportChartInstance) {
+        reportChartInstance.destroy();
+    }
+    
+    const isLight = (document.documentElement.getAttribute('data-theme') === 'light');
+    const themeName = isLight ? 'light' : 'dark';
+    const colors = getThemeColors(themeName);
+    
+    const tempGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    tempGrad.addColorStop(0, 'rgba(244, 63, 94, 0.15)');
+    tempGrad.addColorStop(1, 'rgba(244, 63, 94, 0)');
+    
+    const humidGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    humidGrad.addColorStop(0, 'rgba(14, 165, 233, 0.15)');
+    humidGrad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+    
+    const hiGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    hiGrad.addColorStop(0, 'rgba(234, 179, 8, 0.15)');
+    hiGrad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    
+    reportChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Suhu (°C)',
+                    borderColor: '#f43f5e',
+                    backgroundColor: tempGrad,
+                    data: temps,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Kelembaban (%)',
+                    borderColor: '#0ea5e9',
+                    backgroundColor: humidGrad,
+                    data: humids,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Heat Index (°C)',
+                    borderColor: '#eab308',
+                    backgroundColor: hiGrad,
+                    data: his,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        color: colors.tickColor,
+                        font: { family: 'Outfit', size: 11, weight: '500' },
+                        boxWidth: 8,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: colors.tooltipBg,
+                    titleColor: colors.tooltipText,
+                    bodyColor: colors.tickColor,
+                    borderColor: colors.tooltipBorder,
+                    borderWidth: 1,
+                    padding: 10,
+                    bodyFont: { family: 'Outfit' },
+                    titleFont: { family: 'Outfit', weight: '600' }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: colors.gridColor },
+                    ticks: { color: colors.tickColor, font: { family: 'Outfit', size: 9 }, maxRotation: 45, minRotation: 45 }
+                },
+                y: {
+                    grid: { color: colors.gridColor },
+                    ticks: { color: colors.tickColor, font: { family: 'Outfit', size: 9 } }
+                }
+            }
+        }
+    });
+}
+
+function renderReportsTable(data) {
+    const tbody = document.getElementById('report-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="table-empty">Tidak ada data ditemukan pada rentang tanggal tersebut.</td></tr>`;
+        return;
+    }
+    
+    data.forEach(row => {
+        const timeStr = row.dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+                        row.dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${timeStr}</td>
+            <td style="font-weight: 600; color: #f43f5e;">${row.temperature.toFixed(1)} °C</td>
+            <td style="font-weight: 600; color: #0ea5e9;">${row.humidity.toFixed(1)} %</td>
+            <td style="font-weight: 600; color: #eab308;">${row.heat_index.toFixed(1)} °C</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function exportFilteredReports() {
+    const startDateStr = document.getElementById('filter-start-date').value;
+    const endDateStr = document.getElementById('filter-end-date').value;
+    
+    if (!startDateStr || !endDateStr) return;
+    
+    const start = new Date(startDateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDateStr);
+    end.setHours(23, 59, 59, 999);
+    
+    const filtered = historicalData.filter(row => {
+        return row.dateObj >= start && row.dateObj <= end;
+    });
+    
+    if (filtered.length === 0) {
+        alert("Tidak ada data untuk diekspor!");
+        return;
+    }
+    
+    filtered.sort((a, b) => a.dateObj - b.dateObj);
+    
+    let csvContent = "data:text/csv;charset=utf-8,ID,Waktu/Timestamp,Suhu (C),Kelembaban (%),Heat Index (C)\n";
+    filtered.forEach(row => {
+        csvContent += `${row.id},"${row.timestamp}",${row.temperature},${row.humidity},${row.heat_index}\n`;
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `laporan_sensor_${startDateStr}_ke_${endDateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Register reports event listeners
+const filterForm = document.getElementById('filter-form');
+if (filterForm) {
+    filterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        filterReports();
+    });
+}
+
+const btnExportReports = document.getElementById('btn-export-reports');
+if (btnExportReports) {
+    btnExportReports.addEventListener('click', () => {
+        exportFilteredReports();
+    });
+}

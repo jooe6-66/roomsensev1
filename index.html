@@ -167,13 +167,92 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Laporan (Placeholder) -->
+            <!-- Tab 2: Laporan (Functional Historical Report) -->
             <div id="reports-tab" class="tab-content" style="display: none;">
-                <div class="placeholder-card">
-                    <div class="placeholder-icon">📊</div>
-                    <h3>Menu Laporan Historis</h3>
-                    <p>Halaman ini akan menampilkan pencarian data berdasarkan filter kalender, statistik rata-rata jangka panjang, serta ekspor file laporan kustom.</p>
-                    <button class="btn-primary" onclick="switchTab('overview')">Kembali ke Dashboard</button>
+                <div class="reports-grid">
+                    <!-- Row 1: Filter Panel -->
+                    <div class="filter-card">
+                        <div class="filter-header">
+                            <h3>Filter Data Historis</h3>
+                            <p>Tentukan rentang tanggal untuk menganalisis riwayat sensor.</p>
+                        </div>
+                        <form id="filter-form" class="filter-form">
+                            <div class="filter-group">
+                                <label for="filter-start-date">Tanggal Mulai</label>
+                                <input type="date" id="filter-start-date" required>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-end-date">Tanggal Selesai</label>
+                                <input type="date" id="filter-end-date" required>
+                            </div>
+                            <div class="filter-buttons">
+                                <button type="submit" class="btn-filter-search">
+                                    🔍 Tampilkan
+                                </button>
+                                <button type="button" class="btn-filter-export" id="btn-export-reports">
+                                    📥 Ekspor CSV
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Row 2: Rangkuman Statistik -->
+                    <div class="reports-stats-row">
+                        <div class="stats-mini-card">
+                            <span class="stats-label">Rata-rata Suhu</span>
+                            <span class="stats-val" id="stats-avg-temp">-- °C</span>
+                        </div>
+                        <div class="stats-mini-card">
+                            <span class="stats-label">Rata-rata Kelembaban</span>
+                            <span class="stats-val" id="stats-avg-humid">-- %</span>
+                        </div>
+                        <div class="stats-mini-card">
+                            <span class="stats-label">Rata-rata Heat Index</span>
+                            <span class="stats-val" id="stats-avg-hi">-- °C</span>
+                        </div>
+                        <div class="stats-mini-card">
+                            <span class="stats-label">Total Sampel Data</span>
+                            <span class="stats-val" id="stats-total-records">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Grafik Historis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <h3>Grafik Tren Historis</h3>
+                                <p>Visualisasi tren data berdasarkan rentang waktu yang difilter</p>
+                            </div>
+                        </div>
+                        <div class="main-chart-wrapper">
+                            <canvas id="reportChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Tabel Data -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3>Tabel Log Data</h3>
+                            <p>Data mentah riwayat sensor ruangan</p>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Waktu / Tanggal</th>
+                                        <th>Suhu (°C)</th>
+                                        <th>Kelembaban (%)</th>
+                                        <th>Heat Index (°C)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-table-body">
+                                    <tr>
+                                        <td colspan="4" class="table-empty">Belum ada data. Silakan tentukan rentang tanggal dan klik Tampilkan.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
