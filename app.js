@@ -342,10 +342,37 @@ const roomsenseChart = new Chart(ctxMain, {
                 position: 'top',
                 align: 'end',
                 labels: {
-                    color: initColors.tickColor,
                     font: { family: 'Outfit', size: 12, weight: '500' },
                     boxWidth: 8,
-                    usePointStyle: true
+                    usePointStyle: true,
+                    generateLabels: (chart) => {
+                        const datasets = chart.data.datasets;
+                        const isLight = (document.documentElement.getAttribute('data-theme') === 'light');
+                        
+                        return datasets.map((dataset, i) => {
+                            const isVisible = chart.isDatasetVisible(i);
+                            
+                            // Warna teks: Cerah jika aktif, redup jika tidak aktif (hidden)
+                            let fontColor;
+                            if (isVisible) {
+                                fontColor = isLight ? '#1e1b4b' : '#f8fafc';
+                            } else {
+                                fontColor = isLight ? '#cbd5e1' : '#475569';
+                            }
+                            
+                            return {
+                                text: dataset.label,
+                                fillStyle: isVisible ? dataset.borderColor : (isLight ? '#e2e8f0' : '#201e3d'),
+                                strokeStyle: isVisible ? dataset.borderColor : (isLight ? '#cbd5e1' : '#475569'),
+                                lineWidth: 2,
+                                pointStyle: 'circle',
+                                hidden: false, // PAKSA false agar tidak dicoret/strikethrough oleh Chart.js
+                                index: i,
+                                datasetIndex: i,
+                                fontColor: fontColor
+                            };
+                        });
+                    }
                 }
             },
             tooltip: {
