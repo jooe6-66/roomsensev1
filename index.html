@@ -89,9 +89,18 @@
                                 </div>
                                 <span class="metric-icon">🌡️</span>
                             </div>
-                            <!-- Sparkline Canvas untuk grafik tren mini -->
+                            <!-- Sparkline SVG untuk grafik tren mini -->
                             <div class="sparkline-container">
-                                <canvas id="tempSparkline"></canvas>
+                                <svg id="tempSparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="tempSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.35" />
+                                            <stop offset="100%" stop-color="#f43f5e" stop-opacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path class="sparkline-fill" fill="url(#tempSparkGrad)" d="" />
+                                    <path class="sparkline-line" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="" />
+                                </svg>
                             </div>
                             <div class="card-bottom">
                                 <span class="comfort-badge badge-normal" id="temp-badge">Mengukur...</span>
@@ -111,9 +120,18 @@
                                 </div>
                                 <span class="metric-icon">💧</span>
                             </div>
-                            <!-- Sparkline Canvas -->
+                            <!-- Sparkline SVG -->
                             <div class="sparkline-container">
-                                <canvas id="humidSparkline"></canvas>
+                                <svg id="humidSparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="humidSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.35" />
+                                            <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path class="sparkline-fill" fill="url(#humidSparkGrad)" d="" />
+                                    <path class="sparkline-line" fill="none" stroke="#0ea5e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="" />
+                                </svg>
                             </div>
                             <div class="card-bottom">
                                 <span class="comfort-badge badge-normal" id="humid-badge">Mengukur...</span>
@@ -133,9 +151,18 @@
                                 </div>
                                 <span class="metric-icon">⚠️</span>
                             </div>
-                            <!-- Sparkline Canvas -->
+                            <!-- Sparkline SVG -->
                             <div class="sparkline-container">
-                                <canvas id="hiSparkline"></canvas>
+                                <svg id="hiSparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="hiSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#eab308" stop-opacity="0.35" />
+                                            <stop offset="100%" stop-color="#eab308" stop-opacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path class="sparkline-fill" fill="url(#hiSparkGrad)" d="" />
+                                    <path class="sparkline-line" fill="none" stroke="#eab308" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="" />
+                                </svg>
                             </div>
                             <div class="card-bottom">
                                 <span class="comfort-badge badge-normal" id="hi-badge">Mengukur...</span>

@@ -319,8 +319,14 @@ body {
     gap: 1.5rem;
 }
 
+.card-temp { --glow-color: 244, 63, 94; }
+.card-humid { --glow-color: 14, 165, 233; }
+.card-hi { --glow-color: 234, 179, 8; }
+
 .metric-card {
     background-color: var(--bg-surface);
+    /* ponytail: radial gradient glow effect centering on mouse cursor coordinates */
+    background-image: radial-gradient(300px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(var(--glow-color, 100, 100, 100), 0.15), transparent 80%);
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 1.5rem;
@@ -331,7 +337,7 @@ body {
     box-shadow: 0 10px 15px -3px var(--shadow);
     position: relative;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 .metric-card:hover {
@@ -340,17 +346,17 @@ body {
 
 .card-temp:hover {
     border-color: #f43f5e;
-    box-shadow: 0 20px 25px -5px rgba(244, 63, 94, 0.2), 0 10px 10px -5px rgba(244, 63, 94, 0.1);
+    box-shadow: 0 20px 25px -5px rgba(244, 63, 94, 0.18), 0 10px 10px -5px rgba(244, 63, 94, 0.08);
 }
 
 .card-humid:hover {
     border-color: #0ea5e9;
-    box-shadow: 0 20px 25px -5px rgba(14, 165, 233, 0.2), 0 10px 10px -5px rgba(14, 165, 233, 0.1);
+    box-shadow: 0 20px 25px -5px rgba(14, 165, 233, 0.18), 0 10px 10px -5px rgba(14, 165, 233, 0.08);
 }
 
 .card-hi:hover {
     border-color: #eab308;
-    box-shadow: 0 20px 25px -5px rgba(234, 179, 8, 0.2), 0 10px 10px -5px rgba(234, 179, 8, 0.1);
+    box-shadow: 0 20px 25px -5px rgba(234, 179, 8, 0.18), 0 10px 10px -5px rgba(234, 179, 8, 0.08);
 }
 
 .metric-card::before {
@@ -422,6 +428,13 @@ body {
     height: 55px;
     margin: 0.75rem 0;
     width: 100%;
+}
+
+.sparkline-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
 }
 
 .card-bottom {

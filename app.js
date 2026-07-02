@@ -261,56 +261,64 @@ function showSaveStatus(message, isSuccess) {
 }
 
 /* ==========================================================================
-   SPARKLINE (MINI CHART) GENERATOR
+   SPARKLINE (NATIVE SVG) GENERATOR
    ========================================================================== */
-function createSparkline(canvasId, lineColor, rgbColor) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+// ponytail: native SVG generator untuk menggantikan library Chart.js di sparkline
+const sparklineData = {
+    tempSparkline: [],
+    humidSparkline: [],
+    hiSparkline: []
+};
+
+function pushToSparkline(sparklineId, value) {
+    if (value === null || value === undefined || isNaN(value)) return;
     
-    const fillGradient = ctx.createLinearGradient(0, 0, 0, 45);
-    fillGradient.addColorStop(0, `rgba(${rgbColor}, 0.2)`);
-    fillGradient.addColorStop(1, `rgba(${rgbColor}, 0)`);
-
-    return new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array(10).fill(''),
-            datasets: [{
-                data: [],
-                borderColor: lineColor,
-                backgroundColor: fillGradient,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { display: false },
-                y: { display: false }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: false }
-            }
-        }
-    });
-}
-
-// Inisialisasi masing-masing Sparkline
-const tempSparkline = createSparkline('tempSparkline', '#f43f5e', '244, 63, 94');
-const humidSparkline = createSparkline('humidSparkline', '#0ea5e9', '14, 165, 233');
-const hiSparkline = createSparkline('hiSparkline', '#eab308', '234, 179, 8');
-
-function pushToSparkline(chart, value) {
-    chart.data.datasets[0].data.push(value);
-    if (chart.data.datasets[0].data.length > 10) {
-        chart.data.datasets[0].data.shift();
+    const data = sparklineData[sparklineId];
+    if (!data) return;
+    
+    data.push(value);
+    if (data.length > 10) {
+        data.shift();
     }
-    chart.update('none');
+    
+    const svgEl = document.getElementById(sparklineId);
+    if (!svgEl) return;
+    
+    const linePath = svgEl.querySelector('.sparkline-line');
+    const fillPath = svgEl.querySelector('.sparkline-fill');
+    if (!linePath) return;
+    
+    const N = data.length;
+    if (N < 2) return;
+    
+    // Cari nilai minimum dan maksimum data
+    let min = Math.min(...data);
+    let max = Math.max(...data);
+    
+    // Cegah pembagian nol jika data bernilai konstan
+    if (max === min) {
+        min -= 1;
+        max += 1;
+    }
+    
+    const points = [];
+    for (let i = 0; i < N; i++) {
+        const x = (i / (N - 1)) * 100;
+        const y = 30 - (((data[i] - min) / (max - min)) * 26 + 2); // padding 2px di atas & bawah
+        points.push({x, y});
+    }
+    
+    // Susun string koordinat d untuk path garis
+    let lineD = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    for (let i = 1; i < N; i++) {
+        lineD += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
+    }
+    
+    // Susun string koordinat d untuk path fill area (berakhir di bawah)
+    const fillD = `${lineD} L ${points[N - 1].x.toFixed(1)} 30 L ${points[0].x.toFixed(1)} 30 Z`;
+    
+    linePath.setAttribute('d', lineD);
+    if (fillPath) fillPath.setAttribute('d', fillD);
 }
 
 /* ==========================================================================
@@ -578,9 +586,9 @@ fetch(getApiUrl('/api/history'), {
             roomsenseChart.data.datasets[1].data.push(humid);
             roomsenseChart.data.datasets[2].data.push(hi);
 
-            if (temp !== null) pushToSparkline(tempSparkline, temp);
-            if (humid !== null) pushToSparkline(humidSparkline, humid);
-            if (hi !== null) pushToSparkline(hiSparkline, hi);
+            if (temp !== null) pushToSparkline('tempSparkline', temp);
+            if (humid !== null) pushToSparkline('humidSparkline', humid);
+            if (hi !== null) pushToSparkline('hiSparkline', hi);
         });
         
         if (data.length > 0) {
@@ -594,15 +602,15 @@ fetch(getApiUrl('/api/history'), {
     })
     .catch(err => console.error("Gagal memuat data histori:", err));
 
-// 2. Koneksi WebSocket untuk Data Real-time & Deteksi Status Sensor
-const wsUrl = getWsUrl('/ws/sensor');
-const ws = new WebSocket(wsUrl);
-
+// 2. Koneksi WebSocket untuk Data Real-time & Deteksi Status Sensor dengan Auto-Reconnect
 const connDot = document.getElementById('conn-dot');
 const connText = document.getElementById('conn-text');
 
+let ws = null;
 let lastMessageTime = Date.now();
 let sensorOfflineTriggered = false;
+let wsReconnectDelay = 2000;
+const maxWsReconnectDelay = 30000;
 
 function setSensorOnlineStatus(online) {
     const dot = document.getElementById('conn-dot');
@@ -628,61 +636,82 @@ function setSensorOnlineStatus(online) {
     }
 }
 
-ws.onopen = () => {
-    connDot.className = "status-dot online";
-    connText.textContent = "Terhubung";
-    lastMessageTime = Date.now(); // Reset timer saat koneksi websocket terbuka
-};
+function connectWebSocket() {
+    const wsUrl = getWsUrl('/ws/sensor');
+    ws = new WebSocket(wsUrl);
 
-ws.onclose = () => {
-    connDot.className = "status-dot";
-    connText.textContent = "Terputus";
-    showToast("Server Node-RED terputus!", "error");
-};
+    ws.onopen = () => {
+        if (connDot) connDot.className = "status-dot online";
+        if (connText) connText.textContent = "Terhubung";
+        lastMessageTime = Date.now(); // Reset timer saat koneksi websocket terbuka
+        wsReconnectDelay = 2000;      // Reset delay saat sukses terhubung
+    };
 
-ws.onmessage = (event) => {
-    try {
-        const data = JSON.parse(event.data);
+    ws.onclose = () => {
+        if (connDot) connDot.className = "status-dot";
+        if (connText) connText.textContent = "Terputus";
         
-        // Deteksi pesan LWT status MQTT dari ESP32
-        if (data.status === "offline") {
-            setSensorOnlineStatus(false);
-            return;
+        // ponytail: auto-reconnect dengan exponential backoff
+        setTimeout(() => {
+            console.log("WebSocket: Mencoba menghubungkan kembali...");
+            connectWebSocket();
+        }, wsReconnectDelay);
+        
+        wsReconnectDelay = Math.min(wsReconnectDelay * 1.5, maxWsReconnectDelay);
+    };
+
+    ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        ws.close(); // Pemicu onclose
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            // Deteksi pesan LWT status MQTT dari ESP32
+            if (data.status === "offline") {
+                setSensorOnlineStatus(false);
+                return;
+            }
+            
+            // Setiap menerima pesan sensor baru, perbarui waktu dan status online
+            lastMessageTime = Date.now();
+            setSensorOnlineStatus(true);
+
+            const timeLabel = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            
+            const temp = (data.temperature !== undefined) ? parseFloat(data.temperature) : null;
+            const humid = (data.humidity !== undefined) ? parseFloat(data.humidity) : null;
+            const hi = (data.heat_index !== undefined && data.heat_index !== null) ? parseFloat(data.heat_index) : temp;
+
+            updateAllMetrics(temp, humid, hi);
+
+            if (temp !== null) pushToSparkline('tempSparkline', temp);
+            if (humid !== null) pushToSparkline('humidSparkline', humid);
+            if (hi !== null) pushToSparkline('hiSparkline', hi);
+
+            roomsenseChart.data.labels.push(timeLabel);
+            roomsenseChart.data.datasets[0].data.push(temp);
+            roomsenseChart.data.datasets[1].data.push(humid);
+            roomsenseChart.data.datasets[2].data.push(hi);
+
+            if (roomsenseChart.data.labels.length > 50) {
+                roomsenseChart.data.labels.shift();
+                roomsenseChart.data.datasets[0].data.shift();
+                roomsenseChart.data.datasets[1].data.shift();
+                roomsenseChart.data.datasets[2].data.shift();
+            }
+
+            roomsenseChart.update();
+        } catch (err) {
+            console.error("Gagal membaca data WebSocket:", err);
         }
-        
-        // Setiap menerima pesan sensor baru, perbarui waktu dan status online
-        lastMessageTime = Date.now();
-        setSensorOnlineStatus(true);
+    };
+}
 
-        const timeLabel = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        
-        const temp = (data.temperature !== undefined) ? parseFloat(data.temperature) : null;
-        const humid = (data.humidity !== undefined) ? parseFloat(data.humidity) : null;
-        const hi = (data.heat_index !== undefined && data.heat_index !== null) ? parseFloat(data.heat_index) : temp;
-
-        updateAllMetrics(temp, humid, hi);
-
-        if (temp !== null) pushToSparkline(tempSparkline, temp);
-        if (humid !== null) pushToSparkline(humidSparkline, humid);
-        if (hi !== null) pushToSparkline(hiSparkline, hi);
-
-        roomsenseChart.data.labels.push(timeLabel);
-        roomsenseChart.data.datasets[0].data.push(temp);
-        roomsenseChart.data.datasets[1].data.push(humid);
-        roomsenseChart.data.datasets[2].data.push(hi);
-
-        if (roomsenseChart.data.labels.length > 50) {
-            roomsenseChart.data.labels.shift();
-            roomsenseChart.data.datasets[0].data.shift();
-            roomsenseChart.data.datasets[1].data.shift();
-            roomsenseChart.data.datasets[2].data.shift();
-        }
-
-        roomsenseChart.update();
-    } catch (err) {
-        console.error("Gagal membaca data WebSocket:", err);
-    }
-};
+// Inisialisasi koneksi WebSocket
+connectWebSocket();
 
 // Cek status heartbeat sensor secara berkala (setiap 5 detik)
 setInterval(() => {
@@ -1120,3 +1149,15 @@ function appendMessage(text, senderClass) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return msgDiv;
 }
+
+// ====== PREMIUM HOVER PARALLAX GLOW EFFECT ======
+// ponytail: dynamic radial gradient tracking using CSS custom properties for metric cards
+document.querySelectorAll('.metric-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+    });
+});
