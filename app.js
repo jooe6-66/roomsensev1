@@ -834,6 +834,29 @@ function filterReports() {
         return row.dateObj >= start && row.dateObj <= end;
     });
     
+    const emptyState = document.getElementById('report-empty-state');
+    const statsRow = document.getElementById('report-stats-row');
+    const chartCard = document.getElementById('report-chart-card');
+    const tableCard = document.getElementById('report-table-card');
+    
+    if (filtered.length === 0) {
+        if (emptyState) {
+            emptyState.style.display = 'block';
+            emptyState.querySelector('h3').textContent = 'Tidak Ada Data Ditemukan';
+            emptyState.querySelector('p').innerHTML = 'Tidak ada rekaman data sensor pada rentang tanggal tersebut. Silakan pilih rentang waktu lain.';
+        }
+        if (statsRow) statsRow.style.display = 'none';
+        if (chartCard) chartCard.style.display = 'none';
+        if (tableCard) tableCard.style.display = 'none';
+        return;
+    }
+    
+    // Sembunyikan empty state dan tampilkan kartu visual
+    if (emptyState) emptyState.style.display = 'none';
+    if (statsRow) statsRow.style.display = 'grid';
+    if (chartCard) chartCard.style.display = 'block';
+    if (tableCard) tableCard.style.display = 'block';
+    
     // Urutkan (Lama ke Baru untuk chart, Baru ke Lama untuk tabel)
     const chartData = [...filtered].sort((a, b) => a.dateObj - b.dateObj);
     const tableData = [...filtered].sort((a, b) => b.dateObj - a.dateObj);

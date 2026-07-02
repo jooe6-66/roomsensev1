@@ -220,8 +220,21 @@
                         </form>
                     </div>
 
+                    <!-- Empty State Card (Tampil sebelum ada data) -->
+                    <div id="report-empty-state" class="empty-state-card">
+                        <div class="empty-state-content">
+                            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <h3>Belum Ada Data yang Ditampilkan</h3>
+                            <p>Tentukan rentang tanggal di atas lalu klik <strong>Tampilkan</strong> untuk menganalisis data sensor historis.</p>
+                        </div>
+                    </div>
+
                     <!-- Row 2: Rangkuman Statistik -->
-                    <div class="reports-stats-row">
+                    <div class="reports-stats-row" id="report-stats-row" style="display: none;">
                         <div class="stats-mini-card">
                             <span class="stats-label">Rata-rata Suhu</span>
                             <span class="stats-val" id="stats-avg-temp">-- °C</span>
@@ -241,7 +254,7 @@
                     </div>
 
                     <!-- Row 3: Grafik Historis -->
-                    <div class="chart-card">
+                    <div class="chart-card" id="report-chart-card" style="display: none;">
                         <div class="chart-header">
                             <div>
                                 <h3>Grafik Tren Historis</h3>
@@ -259,7 +272,7 @@
                     </div>
 
                     <!-- Row 4: Tabel Data -->
-                    <div class="table-card">
+                    <div class="table-card" id="report-table-card" style="display: none;">
                         <div class="table-header">
                             <h3>Tabel Log Data</h3>
                             <p>Data mentah riwayat sensor ruangan</p>
