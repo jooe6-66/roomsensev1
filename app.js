@@ -2,25 +2,9 @@
 const BACKEND_URL = "https://unengaged-finalist-married.ngrok-free.dev"; 
 // =================================
 
-// Fungsi helper untuk mendapatkan URL API
-const getApiUrl = (path) => {
-    if (BACKEND_URL) {
-        const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
-        return `${base}${path}`;
-    }
-    return path;
-};
-
-// Fungsi helper untuk mendapatkan URL WebSocket
-const getWsUrl = (path) => {
-    if (BACKEND_URL) {
-        const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
-        const wsBase = base.replace(/^http/, 'ws');
-        return `${wsBase}${path}`;
-    }
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProtocol}//${window.location.host}${path}`;
-};
+// Fungsi helper untuk mendapatkan URL API dan WebSocket
+const getApiUrl = (path) => new URL(path, BACKEND_URL).href;
+const getWsUrl = (path) => new URL(path, BACKEND_URL.replace(/^http/, 'ws')).href;
 
 // Fungsi helper untuk menampilkan Toast Notification melayang
 const showToast = (message, type = 'success') => {
@@ -792,12 +776,7 @@ function parseCSV(csvText) {
 }
 
 function initDefaultFilterDates() {
-    const formatDate = (date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
+    const formatDate = (date) => date.toLocaleDateString('sv');
 
     if (historicalData && historicalData.length > 0) {
         // Cari tanggal paling awal dan paling akhir dari data yang ada di database
@@ -841,9 +820,11 @@ function filterReports() {
     
     if (filtered.length === 0) {
         if (emptyState) {
-            emptyState.style.display = 'block';
+            const dateStart = new Date(startDateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+            const dateEnd = new Date(endDateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+            emptyState.style.display = 'flex';
             emptyState.querySelector('h3').textContent = 'Tidak Ada Data Ditemukan';
-            emptyState.querySelector('p').innerHTML = 'Tidak ada rekaman data sensor pada rentang tanggal tersebut. Silakan pilih rentang waktu lain.';
+            emptyState.querySelector('p').innerHTML = `Tidak ada rekaman data sensor pada rentang tanggal <strong>${dateStart}</strong> sampai <strong>${dateEnd}</strong>. Silakan pilih rentang waktu lain.`;
         }
         if (statsRow) statsRow.style.display = 'none';
         if (chartCard) chartCard.style.display = 'none';
