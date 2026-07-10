@@ -2,12 +2,14 @@
 <html lang="id" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RoomSense v1 - IoT Dashboard</title>
     <!-- Font modern Outfit dari Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Pustaka Chart.js Resmi -->
+    <!-- Pustaka Chart.js Resmi & Zoom Plugins -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,12 +18,8 @@
         <!-- 1. LEFT SIDEBAR -->
         <aside class="sidebar">
             <div class="logo-section">
-                <!-- Ikon Logo SVG RoomSense -->
-                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <circle cx="12" cy="13" r="1.5" fill="currentColor"></circle>
-                    <path d="M9 13a3 3 0 0 1 6 0"></path>
-                </svg>
+                <!-- Ikon Logo Gambar RoomSense -->
+                <img class="logo-icon" src="logo.jpg" alt="RoomSense Logo">
                 <div class="logo-text">
                     <h2>RoomSense</h2>
                     <span>Version 1.0 (Beta)</span>
@@ -52,10 +50,14 @@
             <!-- Top Navbar Header -->
             <header class="top-navbar">
                 <div class="header-left">
-                    <h1 id="page-title">Dashboard</h1>
-                    <div class="status-indicator">
-                        <span id="conn-dot" class="status-dot"></span>
-                        <span id="conn-text">Menghubungkan...</span>
+                    <!-- Logo RoomSense untuk Tampilan Mobile Header -->
+                    <img class="header-logo-icon" src="logo.jpg" alt="RoomSense Logo">
+                    <div class="header-titles">
+                        <h1 id="page-title">Dashboard</h1>
+                        <div class="status-indicator">
+                            <span id="conn-dot" class="status-dot"></span>
+                            <span id="conn-text">Menghubungkan...</span>
+                        </div>
                     </div>
                 </div>
                 

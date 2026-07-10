@@ -2,9 +2,25 @@
 const BACKEND_URL = "https://unengaged-finalist-married.ngrok-free.dev"; 
 // =================================
 
-// Fungsi helper untuk mendapatkan URL API dan WebSocket
-const getApiUrl = (path) => new URL(path, BACKEND_URL).href;
-const getWsUrl = (path) => new URL(path, BACKEND_URL.replace(/^http/, 'ws')).href;
+// Fungsi helper untuk mendapatkan URL API dan WebSocket (Metode String Concatenation yang Aman untuk Mobile WebView)
+const getApiUrl = (path) => {
+    const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
+};
+const getWsUrl = (path) => {
+    const base = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
+    const wsBase = base.replace(/^http/, 'ws');
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${wsBase}${cleanPath}`;
+};
+
+// Helper Haptic Feedback untuk Android/iOS
+const triggerHaptic = (style = 'LIGHT') => {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
+        window.Capacitor.Plugins.Haptics.impact({ style: style.toUpperCase() });
+    }
+};
 
 // Fungsi helper untuk menampilkan Toast Notification melayang
 const showToast = (message, type = 'success') => {
@@ -62,6 +78,7 @@ updateThemeIcon(savedTheme);
 
 if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', () => {
+        triggerHaptic('medium');
         const currentTheme = htmlElement.getAttribute('data-theme') || 'dark';
         const targetTheme = currentTheme === 'dark' ? 'light' : 'dark';
         
@@ -91,7 +108,7 @@ function updateThemeIcon(theme) {
 function getThemeColors(theme) {
     const isLight = (theme === 'light');
     return {
-        gridColor: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+        gridColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.07)',
         tickColor: isLight ? '#64748b' : '#7e7c9c',
         tooltipBg: isLight ? '#ffffff' : '#121124',
         tooltipBorder: isLight ? '#e2e8f0' : '#201e3d',
@@ -140,6 +157,7 @@ function switchTab(tabId) {
 // Pasang event listener klik pada item menu sidebar
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', (e) => {
+        triggerHaptic('light');
         e.preventDefault();
         const tabId = item.getAttribute('data-tab');
         if (tabId) switchTab(tabId);
@@ -160,6 +178,7 @@ function loadSettingsForm() {
 const settingsForm = document.getElementById('settings-form');
 if (settingsForm) {
     settingsForm.addEventListener('submit', (e) => {
+        triggerHaptic('heavy');
         e.preventDefault();
 
         const tempMin = parseFloat(document.getElementById('set-temp-min').value);
@@ -380,6 +399,22 @@ const roomsenseChart = new Chart(ctxMain, {
                 padding: 10,
                 bodyFont: { family: 'Outfit' },
                 titleFont: { family: 'Outfit', weight: '600' }
+            },
+            zoom: {
+                pan: {
+                    enabled: true,
+                    mode: 'x',
+                    threshold: 10
+                },
+                zoom: {
+                    wheel: {
+                        enabled: true
+                    },
+                    pinch: {
+                        enabled: true
+                    },
+                    mode: 'x'
+                }
             }
         },
         scales: {
@@ -395,6 +430,11 @@ const roomsenseChart = new Chart(ctxMain, {
     }
 });
 
+// Double click/tap pada grafik utama untuk reset zoom
+document.getElementById('roomsenseChart').addEventListener('dblclick', () => {
+    roomsenseChart.resetZoom();
+});
+
 // ====== CUSTOM LEGEND BUTTONS SINKRONISASI ======
 const legendButtons = {
     0: { btn: document.getElementById('legend-temp'), activeClass: 'active-temp' },
@@ -407,6 +447,7 @@ Object.keys(legendButtons).forEach(indexStr => {
     const item = legendButtons[index];
     if (item.btn) {
         item.btn.addEventListener('click', () => {
+            triggerHaptic('light');
             const isVisible = roomsenseChart.isDatasetVisible(index);
             if (isVisible) {
                 roomsenseChart.hide(index);
@@ -431,6 +472,7 @@ Object.keys(reportLegendButtons).forEach(indexStr => {
     const item = reportLegendButtons[index];
     if (item.btn) {
         item.btn.addEventListener('click', () => {
+            triggerHaptic('light');
             if (reportChartInstance) {
                 const isVisible = reportChartInstance.isDatasetVisible(index);
                 if (isVisible) {
@@ -958,6 +1000,22 @@ function renderReportsChart(data) {
                     padding: 10,
                     bodyFont: { family: 'Outfit' },
                     titleFont: { family: 'Outfit', weight: '600' }
+                },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                        threshold: 10
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'x'
+                    }
                 }
             },
             scales: {
@@ -970,6 +1028,13 @@ function renderReportsChart(data) {
                     ticks: { color: colors.tickColor, font: { family: 'Outfit', size: 9 } }
                 }
             }
+        }
+    });
+
+    // Double click/tap pada grafik laporan untuk reset zoom
+    document.getElementById('reportChart').addEventListener('dblclick', () => {
+        if (reportChartInstance) {
+            reportChartInstance.resetZoom();
         }
     });
 
